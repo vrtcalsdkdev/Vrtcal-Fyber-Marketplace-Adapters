@@ -1,1 +1,0 @@
-# Vrtcal-Fyber-Marketplace-Adapters
