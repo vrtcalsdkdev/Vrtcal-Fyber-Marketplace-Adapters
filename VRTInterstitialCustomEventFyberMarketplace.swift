@@ -1,86 +1,147 @@
-//  Converted to Swift 5.8.1 by Swiftify v5.8.26605 - https://swiftify.com/
+
 import IASDKCore
 import VrtcalSDK
 
 //Fyber Marketplace Interstitial Adapter, Vrtcal as Primary
 
-class VRTInterstitialCustomEventFyberMarketplace: VRTAbstractInterstitialCustomEvent, IAUnitDelegate, IAMRAIDContentDelegate, IAVideoContentDelegate {
-    private var adSpot: IAAdSpot?
-    private var unitController: IAFullscreenUnitController?
-    private var videoContentController: IAVideoContentController?
-    private var mraidContentController: IAMRAIDContentController?
-
-    func loadInterstitialAd() {
-
-        VRTLogWhereAmI()
-
-        let spotId = customEventConfig.thirdPartyCustomEventData["adUnitId"] as? String
-
-
-        let userData = IAUserData.build({ builder in
-        })
-
-        let adRequest = IAAdRequest.build({ builder in
-            builder.userData = userData
+class VRTInterstitialCustomEventFyberMarketplace: VRTAbstractInterstitialCustomEvent {
+    private var iaAdSpot: IAAdSpot?
+    private var iaFullscreenUnitController: IAFullscreenUnitController?
+    private var iaVideoContentController: IAVideoContentController?
+    private var iaMraidContentController: IAMRAIDContentController?
+    
+    private var iaUnitDelegatePassthrough = IAUnitDelegatePassthrough()
+    private var iaVideoContentDelegatePassthrough = IAVideoContentDelegatePassthrough()
+    private var iaMRAIDContentDelegatePassthrough = IAMRAIDContentDelegatePassthrough()
+    
+    override func loadInterstitialAd() {
+        
+        VRTLogInfo()
+        
+        
+        guard let spotId = customEventConfig.thirdPartyAdUnitId(
+            customEventLoadDelegate: customEventLoadDelegate
+        ) else {
+            return
+        }
+        
+        // Set Delegates
+        iaUnitDelegatePassthrough.viewControllerDelegate = viewControllerDelegate
+        iaMRAIDContentDelegatePassthrough.customEventShowDelegate = customEventShowDelegate
+        
+        
+        guard let iaAdRequest = IAAdRequest.build({ builder in
             builder.spotID = spotId
             builder.timeout = 10
-        })
-
-        videoContentController = .build({ builder in
-            builder.videoContentDelegate = self
-        })
-
-        mraidContentController = .build({ builder in
-            builder.mraidContentDelegate = self
-        })
-
-
-        unitController = IAFullscreenUnitController.build({ [self] builder in
-            builder.unitDelegate = self
+        }) else {
+            let vrtError = VRTError(
+                vrtErrorCode: .customEvent,
+                message: "Could not make iaAdRequest"
+            )
+            customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            return
+        }
+        
+        // videoContentController
+        guard let videoContentController = IAVideoContentController.build({ builder in
+            builder.videoContentDelegate = self.iaVideoContentDelegatePassthrough
+        }) else {
+            
+            let vrtError = VRTError(
+                vrtErrorCode: .customEvent,
+                message: "Could not make iaViewUnitController"
+            )
+            customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            return
+        }
+        
+        // mraidContentController
+        guard let mraidContentController = IAMRAIDContentController.build({ builder in
+            builder.mraidContentDelegate = self.iaMRAIDContentDelegatePassthrough
+        }) else {
+            let vrtError = VRTError(
+                vrtErrorCode: .customEvent,
+                message: "Could not make mraidContentController"
+            )
+            customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            return
+        }
+        
+        // iaFullscreenUnitController
+        guard let iaFullscreenUnitController = IAFullscreenUnitController.build({ builder in
+            builder.unitDelegate = self.iaUnitDelegatePassthrough
             builder.addSupportedContentController(mraidContentController)
             builder.addSupportedContentController(videoContentController)
-        })
-
-        adSpot = IAAdSpot.build({ [self] builder in
-            builder.adRequest = adRequest // pass here the ad request object;
+        }) else {
+            let vrtError = VRTError(
+                vrtErrorCode: .customEvent,
+                message: "Could not make iaFullscreenUnitController"
+            )
+            customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            return
+        }
+        self.iaFullscreenUnitController = iaFullscreenUnitController
+        
+        // iaAdSpot
+        guard let iaAdSpot = IAAdSpot.build({ builder in
+            builder.adRequest = iaAdRequest // pass here the ad request object;
             // all the supported (by a client side) unit controllers,
             // (in this case - view unit controller) should be added to the desired ad spot:
-            builder.addSupportedUnitController(unitController)
-        })
-
-        adSpot?.fetchAd() { [self] adSpot, adModel, error in
-
+            builder.addSupportedUnitController(iaFullscreenUnitController)
+        }) else {
+            let vrtError = VRTError(
+                vrtErrorCode: .customEvent,
+                message: "Could not make iaAdSpot"
+            )
+            customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            return
+        }
+        
+        // fetchAd
+        iaAdSpot.fetchAd() { adSpot, adModel, error in
             if let error {
-                VRTLogWhereAmI()
-                customEventLoadDelegate.customEventFailedToLoadWithError(error)
+                VRTLogInfo()
+                let vrtError = VRTError(
+                    vrtErrorCode: .customEvent,
+                    error: error
+                )
+                self.customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
                 return
             }
-
-            VRTLogWhereAmI()
-            customEventLoadDelegate.customEventLoaded()
+            
+            VRTLogInfo()
+            self.customEventLoadDelegate?.customEventLoaded()
         }
     }
-
-    func showInterstitialAd() {
-        VRTLogWhereAmI()
-        unitController?.showAd(animated: true) {
-            VRTLogWhereAmI()
+    
+    override func showInterstitialAd() {
+        VRTLogInfo()
+        iaFullscreenUnitController?.showAd(animated: true) {
+            VRTLogInfo()
         }
     }
+}
+    
+    
 
-    func iaParentViewController(for unitController: IAUnitController?) -> UIViewController {
-        VRTLogWhereAmI()
-        return viewControllerDelegate.vrtViewControllerForModalPresentation()
-    }
+
+
+
+
+
+/*
+IAMRAIDContentDelegate, IAVideoContentDelegate {
+
+
 
     func iaAdDidReceiveClick(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventClicked()
+        VRTLogInfo()
+        customEventShowDelegate?.customEventClicked()
     }
 
     func iaAdWillLogImpression(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventShown()
+        VRTLogInfo()
+        customEventShowDelegate?.customEventShown()
     }
 
     ///  The rewarded units callback for a user reward.
@@ -88,51 +149,51 @@ class VRTInterstitialCustomEventFyberMarketplace: VRTAbstractInterstitialCustomE
     ///  - Remark: This callback is called for all type of the rewarded content, both HTML/JS and video (VAST).
     ///  In order to use the rewarded callback for all available rewarded content, you will have to implement this method (not the `IAVideoCompleted:`;
     func iaAdDidReward(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
+        VRTLogInfo()
     }
 
     func iaUnitControllerWillPresentFullscreen(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventWillPresentModal(VRTModalTypeUnknown)
+        VRTLogInfo()
+        customEventShowDelegate?.customEventWillPresentModal(.unknown)
     }
 
     func iaUnitControllerDidPresentFullscreen(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventDidPresentModal(VRTModalTypeUnknown)
+        VRTLogInfo()
+        customEventShowDelegate?.customEventDidPresentModal(.unknown)
     }
 
     func iaUnitControllerWillDismissFullscreen(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventWillDismissModal(VRTModalTypeUnknown)
+        VRTLogInfo()
+        customEventShowDelegate?.customEventWillDismissModal(.unknown)
     }
 
     func iaUnitControllerDidDismissFullscreen(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventDidDismissModal(VRTModalTypeUnknown)
+        VRTLogInfo()
+        customEventShowDelegate?.customEventDidDismissModal(.unknown)
     }
 
     func iaUnitControllerWillOpenExternalApp(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventWillLeaveApplication()
+        VRTLogInfo()
+        customEventShowDelegate?.customEventWillLeaveApplication()
     }
 
     func iaAdDidExpire(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
+        VRTLogInfo()
     }
 
     func iaVideoCompleted(_ contentController: IAVideoContentController?) {
-        VRTLogWhereAmI()
+        VRTLogInfo()
     }
 
     func iaVideoContentController(_ contentController: IAVideoContentController?, videoInterruptedWithError error: Error) {
-        VRTLogWhereAmI()
+        VRTLogInfo()
     }
 
     ///  Use to get video duration in seconds. Is valid only if the ad is video ad.
     ///
     ///  - Remark: This method will be invoked after a new received video will become ready to play.
     func iaVideoContentController(_ contentController: IAVideoContentController?, videoDurationUpdated videoDuration: TimeInterval) {
-        VRTLogWhereAmI()
+        VRTLogInfo()
     }
 
     ///  Video progress observer. Use to observe current video progress. Is valid only if the ad is video ad and the video is being played.
@@ -143,8 +204,9 @@ class VRTInterstitialCustomEventFyberMarketplace: VRTAbstractInterstitialCustomE
     ///   - currentTime: Current playback time in seconds.
     ///    - totalTime:   Total video duration in seconds.
     func iaVideoContentController(_ contentController: IAVideoContentController?, videoProgressUpdatedWithCurrentTime currentTime: TimeInterval, totalTime: TimeInterval) {
-        VRTLogWhereAmI()
+        VRTLogInfo()
     }
 }
 
-//Fyber Marketplace Interstitial Adapter, Vrtcal as Primary
+
+*/

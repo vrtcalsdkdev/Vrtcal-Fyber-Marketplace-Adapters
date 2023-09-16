@@ -1,129 +1,129 @@
-//  Converted to Swift 5.8.1 by Swiftify v5.8.26605 - https://swiftify.com/
+
 import IASDKCore
 import VrtcalSDK
 
-//Fyber Marketplace Banner Adapter, Vrtcal as Primary
-
-class VRTBannerCustomEventFyberMarketplace: VRTAbstractBannerCustomEvent, IAUnitDelegate, IAMRAIDContentDelegate {
-    private var adSpot: IAAdSpot?
-    private var viewUnitController: IAViewUnitController?
+// Fyber Marketplace Banner Adapter, Vrtcal as Primary
+class VRTBannerCustomEventFyberMarketplace: VRTAbstractBannerCustomEvent {
+        
+    private var iaAdSpot: IAAdSpot?
+    private var iaViewUnitController: IAViewUnitController?
     private var mraidContentController: IAMRAIDContentController?
-
-    func loadBannerAd() {
-
-        VRTLogWhereAmI()
-
-        let spotId = customEventConfig.thirdPartyCustomEventData["adUnitId"] as? String
-        //    NSString *strWidth = [self.customEventConfig.thirdPartyCustomEventData objectForKey:@"width"];
-        //    NSString *strHeight = [self.customEventConfig.thirdPartyCustomEventData objectForKey:@"height"];
-
-        //    CGFloat width = [strWidth respondsToSelector:@selector(floatValue)] ? [strWidth floatValue] : 320;
-        //    CGFloat height = [strWidth respondsToSelector:@selector(floatValue)] ? [strHeight floatValue] : 50;
-
-        let userData = IAUserData.build({ builder in
-        })
-
-        let adRequest = IAAdRequest.build({ builder in
-            builder.userData = userData
+    
+    
+    var iaUnitDelegatePassthrough = IAUnitDelegatePassthrough()
+    var iaMRAIDContentDelegatePassthrough = IAMRAIDContentDelegatePassthrough()
+    
+    override func loadBannerAd() {
+        
+        VRTLogInfo()
+        
+        guard let spotId = customEventConfig.thirdPartyAdUnitId(
+            customEventLoadDelegate: customEventLoadDelegate
+        ) else { return }
+        
+        
+        iaUnitDelegatePassthrough.viewControllerDelegate = viewControllerDelegate
+        iaMRAIDContentDelegatePassthrough.customEventShowDelegate = customEventShowDelegate
+        
+        
+        // Make iaAdRequest
+        guard let iaAdRequest = IAAdRequest.build({ builder in
             builder.spotID = spotId
             builder.timeout = 10
-        })
+        }) else {
+            let vrtError = VRTError(vrtErrorCode: .customEvent, message: "Could not make iaAdRequest")
+            customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            return
+        }
 
-        mraidContentController = .build({ builder in
-            builder.mraidContentDelegate = self
-        })
-
-        viewUnitController = IAViewUnitController.build({ [self] builder in
-            builder.unitDelegate = self
+        // Make mraidContentController
+        guard let mraidContentController = IAMRAIDContentController.build({ builder in
+            builder.mraidContentDelegate = self.iaMRAIDContentDelegatePassthrough
+        }) else {
+            let vrtError = VRTError(vrtErrorCode: .customEvent, message: "Could not make mraidContentController")
+            customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            return
+        }
+        
+        // Make iaViewUnitController
+        guard let iaViewUnitController = IAViewUnitController.build({ builder in
+            builder.unitDelegate = self.iaUnitDelegatePassthrough
             // all the needed content controllers should be added to the desired unit controller:
             builder.addSupportedContentController(mraidContentController)
-        })
-
-        adSpot = IAAdSpot.build({ [self] builder in
-            builder.adRequest = adRequest // pass here the ad request object;
-            // all the supported (by a client side) unit controllers,
-            // (in this case - view unit controller) should be added to the desired ad spot:
-            builder.addSupportedUnitController(viewUnitController)
-        })
-
-        adSpot?.fetchAd() { [self] adSpot, adModel, error in
-
-            if let error {
-                VRTLogWhereAmI()
-                customEventLoadDelegate.customEventFailedToLoadWithError(error)
+        }) else {
+            let vrtError = VRTError(vrtErrorCode: .customEvent, message: "Could not make iaViewUnitController")
+            customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            return
+        }
+        
+        // Make iaAdSpot
+        guard let iaAdSpot = IAAdSpot.build({ builder in
+            builder.adRequest = iaAdRequest
+            builder.addSupportedUnitController(iaViewUnitController)
+        }) else {
+            let vrtError = VRTError(vrtErrorCode: .customEvent, message: "Could not make iaAdSpot")
+            customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            return
+        }
+        
+        iaAdSpot.fetchAd() { _, _, nsError in
+            
+            if let nsError {
+                let vrtError = VRTError(vrtErrorCode: .customEvent, error: nsError)
+                self.customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
                 return
             }
-
-            VRTLogWhereAmI()
-            customEventLoadDelegate.customEventLoaded()
+            
+            VRTLogInfo()
+            self.customEventLoadDelegate?.customEventLoaded()
         }
     }
-
-    func getView() -> UIView? {
-        return viewUnitController?.adView
+    
+    override func getView() -> UIView? {
+        return iaViewUnitController?.adView
     }
+}
 
-    func iaParentViewController(for unitController: IAUnitController?) -> UIViewController {
-        VRTLogWhereAmI()
-        return viewControllerDelegate.vrtViewControllerForModalPresentation()
-    }
 
-    func iamraidContentControllerMRAIDAdWillCollapse(_ contentController: IAMRAIDContentController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventWillDismissModal(VRTModalTypeMraidExpand)
-    }
 
-    func iamraidContentControllerMRAIDAdDidCollapse(_ contentController: IAMRAIDContentController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventDidDismissModal(VRTModalTypeMraidExpand)
-    }
-
-    func iaAdDidReceiveClick(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventClicked()
-    }
-
-    func iaAdWillLogImpression(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventShown()
-    }
+/*
+ , IAMRAIDContentDelegate {
 
     ///  The rewarded units callback for a user reward.
     ///
     ///  - Remark: This callback is called for all type of the rewarded content, both HTML/JS and video (VAST).
     ///  In order to use the rewarded callback for all available rewarded content, you will have to implement this method (not the `IAVideoCompleted:`;
     func iaAdDidReward(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
+        VRTLogInfo()
     }
 
     func iaUnitControllerWillPresentFullscreen(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventWillPresentModal(VRTModalTypeUnknown)
+        VRTLogInfo()
+        customEventShowDelegate?.customEventWillPresentModal(.unknown)
     }
 
     func iaUnitControllerDidPresentFullscreen(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventDidPresentModal(VRTModalTypeUnknown)
+        VRTLogInfo()
+        customEventShowDelegate?.customEventDidPresentModal(.unknown)
     }
 
     func iaUnitControllerWillDismissFullscreen(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventWillDismissModal(VRTModalTypeUnknown)
+        VRTLogInfo()
+        customEventShowDelegate?.customEventWillDismissModal(.unknown)
     }
 
     func iaUnitControllerDidDismissFullscreen(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventDidDismissModal(VRTModalTypeUnknown)
+        VRTLogInfo()
+        customEventShowDelegate?.customEventDidDismissModal(.unknown)
     }
 
     func iaUnitControllerWillOpenExternalApp(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
-        customEventShowDelegate.customEventWillLeaveApplication()
+        VRTLogInfo()
+        customEventShowDelegate?.customEventWillLeaveApplication()
     }
 
     func iaAdDidExpire(_ unitController: IAUnitController?) {
-        VRTLogWhereAmI()
+        VRTLogInfo()
     }
 }
-
-//MoPub Banner Adapter, Vrtcal as Primary
+*/
