@@ -23,8 +23,6 @@ class VRTBannerCustomEventFyberMarketplace: VRTAbstractBannerCustomEvent {
         
         
         iaUnitDelegatePassthrough.viewControllerDelegate = viewControllerDelegate
-        iaMRAIDContentDelegatePassthrough.customEventShowDelegate = customEventShowDelegate
-        
         
         // Make iaAdRequest
         guard let iaAdRequest = IAAdRequest.build({ builder in
@@ -80,50 +78,7 @@ class VRTBannerCustomEventFyberMarketplace: VRTAbstractBannerCustomEvent {
     }
     
     override func getView() -> UIView? {
+        iaMRAIDContentDelegatePassthrough.customEventShowDelegate = customEventShowDelegate
         return iaViewUnitController?.adView
     }
 }
-
-
-
-/*
- , IAMRAIDContentDelegate {
-
-    ///  The rewarded units callback for a user reward.
-    ///
-    ///  - Remark: This callback is called for all type of the rewarded content, both HTML/JS and video (VAST).
-    ///  In order to use the rewarded callback for all available rewarded content, you will have to implement this method (not the `IAVideoCompleted:`;
-    func iaAdDidReward(_ unitController: IAUnitController?) {
-        VRTLogInfo()
-    }
-
-    func iaUnitControllerWillPresentFullscreen(_ unitController: IAUnitController?) {
-        VRTLogInfo()
-        customEventShowDelegate?.customEventWillPresentModal(.unknown)
-    }
-
-    func iaUnitControllerDidPresentFullscreen(_ unitController: IAUnitController?) {
-        VRTLogInfo()
-        customEventShowDelegate?.customEventDidPresentModal(.unknown)
-    }
-
-    func iaUnitControllerWillDismissFullscreen(_ unitController: IAUnitController?) {
-        VRTLogInfo()
-        customEventShowDelegate?.customEventWillDismissModal(.unknown)
-    }
-
-    func iaUnitControllerDidDismissFullscreen(_ unitController: IAUnitController?) {
-        VRTLogInfo()
-        customEventShowDelegate?.customEventDidDismissModal(.unknown)
-    }
-
-    func iaUnitControllerWillOpenExternalApp(_ unitController: IAUnitController?) {
-        VRTLogInfo()
-        customEventShowDelegate?.customEventWillLeaveApplication()
-    }
-
-    func iaAdDidExpire(_ unitController: IAUnitController?) {
-        VRTLogInfo()
-    }
-}
-*/
