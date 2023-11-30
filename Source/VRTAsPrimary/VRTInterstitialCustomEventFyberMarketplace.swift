@@ -41,52 +41,68 @@ class VRTInterstitialCustomEventFyberMarketplace: VRTAbstractInterstitialCustomE
             return
         }
         
-        // videoContentController
-        guard let videoContentController = IAVideoContentController.build({ builder in
+        // IAVideoContentController
+        guard let iaVideoContentController = IAVideoContentController.build({ builder in
             builder.videoContentDelegate = self.iaVideoContentDelegatePassthrough
         }) else {
-            
             let vrtError = VRTError(
                 vrtErrorCode: .customEvent,
-                message: "Could not make iaViewUnitController"
+                message: "Could not make IAVideoContentController"
             )
             customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
             return
         }
+        self.iaVideoContentController = iaVideoContentController
         
-        // mraidContentController
-        guard let mraidContentController = IAMRAIDContentController.build({ builder in
+        // IAMRAIDContentController
+        guard let iaMraidContentController = IAMRAIDContentController.build({ builder in
             builder.mraidContentDelegate = self.iaMRAIDContentDelegatePassthrough
         }) else {
             let vrtError = VRTError(
                 vrtErrorCode: .customEvent,
-                message: "Could not make mraidContentController"
+                message: "Could not make IAMRAIDContentController"
+            )
+            customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            return
+        }
+        self.iaMraidContentController = iaMraidContentController
+        
+        // IAViewUnitController
+        guard let viewUnitController = IAViewUnitController.build({ (builder: IAViewUnitControllerBuilder) in
+            builder.unitDelegate = self.iaUnitDelegatePassthrough
+            builder.addSupportedContentController(iaMraidContentController)
+            builder.addSupportedContentController(iaVideoContentController)
+        }) else {
+            let vrtError = VRTError(
+                vrtErrorCode: .customEvent,
+                message: "Could not make IAViewUnitController"
             )
             customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
             return
         }
         
-        // iaFullscreenUnitController
+        // IAFullscreenUnitController
         guard let iaFullscreenUnitController = IAFullscreenUnitController.build({ builder in
             builder.unitDelegate = self.iaUnitDelegatePassthrough
-            builder.addSupportedContentController(mraidContentController)
-            builder.addSupportedContentController(videoContentController)
+            builder.addSupportedContentController(iaMraidContentController)
+            builder.addSupportedContentController(iaVideoContentController)
         }) else {
             let vrtError = VRTError(
                 vrtErrorCode: .customEvent,
-                message: "Could not make iaFullscreenUnitController"
+                message: "Could not make IAFullscreenUnitController"
             )
             customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
             return
         }
         self.iaFullscreenUnitController = iaFullscreenUnitController
         
-        // iaAdSpot
+        // IAAdSpot
         guard let iaAdSpot = IAAdSpot.build({ builder in
             builder.adRequest = iaAdRequest // pass here the ad request object;
             // all the supported (by a client side) unit controllers,
             // (in this case - view unit controller) should be added to the desired ad spot:
             builder.addSupportedUnitController(iaFullscreenUnitController)
+            builder.addSupportedUnitController(viewUnitController)
         }) else {
             let vrtError = VRTError(
                 vrtErrorCode: .customEvent,
