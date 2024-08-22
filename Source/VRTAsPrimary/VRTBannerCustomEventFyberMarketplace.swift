@@ -14,14 +14,30 @@ class VRTBannerCustomEventFyberMarketplace: VRTAbstractBannerCustomEvent {
     var iaMRAIDContentDelegatePassthrough = IAMRAIDContentDelegatePassthrough()
     
     override func loadBannerAd() {
-        
         VRTLogInfo()
         
-        guard let spotId = customEventConfig.thirdPartyAdUnitId(
+        VRTAsPrimaryManager.singleton.initializeThirdParty(
+            customEventConfig: customEventConfig
+        ) { result in
+            switch result {
+            case .success():
+                self.finishLoadingBanner()
+            case .failure(let vrtError):
+                self.customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            }
+        }
+    }
+    
+    func finishLoadingBanner() {
+        VRTLogInfo()
+
+        guard let spotId = customEventConfig.thirdPartyCustomEventDataValueOrFailToLoad(
+            thirdPartyCustomEventKey: .adUnitId,
             customEventLoadDelegate: customEventLoadDelegate
-        ) else { return }
-        
-        
+        ) else {
+            return
+        }
+
         iaUnitDelegatePassthrough.viewControllerDelegate = viewControllerDelegate
         
         // Make iaAdRequest
@@ -64,8 +80,8 @@ class VRTBannerCustomEventFyberMarketplace: VRTAbstractBannerCustomEvent {
             return
         }
         
+        // Fetch the ad
         iaAdSpot.fetchAd() { _, _, nsError in
-            
             if let nsError {
                 let vrtError = VRTError(vrtErrorCode: .customEvent, error: nsError)
                 self.customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)

@@ -18,8 +18,23 @@ class VRTInterstitialCustomEventFyberMarketplace: VRTAbstractInterstitialCustomE
         
         VRTLogInfo()
         
+        VRTAsPrimaryManager.singleton.initializeThirdParty(
+            customEventConfig: customEventConfig
+        ) { result in
+            switch result {
+            case .success():
+                self.finishLoadingInterstitial()
+            case .failure(let vrtError):
+                self.customEventLoadDelegate?.customEventFailedToLoad(vrtError: vrtError)
+            }
+        }
+    }
+    
+    func finishLoadingInterstitial() {
+        VRTLogInfo()
         
-        guard let spotId = customEventConfig.thirdPartyAdUnitId(
+        guard let spotId = customEventConfig.thirdPartyCustomEventDataValueOrFailToLoad(
+            thirdPartyCustomEventKey: .adUnitId,
             customEventLoadDelegate: customEventLoadDelegate
         ) else {
             return
