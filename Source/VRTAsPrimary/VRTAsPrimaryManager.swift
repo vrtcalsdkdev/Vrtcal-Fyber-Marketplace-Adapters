@@ -13,6 +13,7 @@ class VRTAsPrimaryManager: NSObject {
     ) {
         VRTLogInfo()
         guard shouldInit else {
+            completionHandler(.success())
             return
         }
         
