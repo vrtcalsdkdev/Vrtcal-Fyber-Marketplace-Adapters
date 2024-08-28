@@ -130,8 +130,8 @@ class VRTInterstitialCustomEventFyberMarketplace: VRTAbstractInterstitialCustomE
         
         // fetchAd
         iaAdSpot.fetchAd() { adSpot, adModel, error in
+            VRTLogInfo("adSpot: \(String(describing: adSpot)), adModel: \(String(describing: adModel)), error: \(String(describing: error))")
             if let error {
-                VRTLogInfo()
                 let vrtError = VRTError(
                     vrtErrorCode: .customEvent,
                     error: error

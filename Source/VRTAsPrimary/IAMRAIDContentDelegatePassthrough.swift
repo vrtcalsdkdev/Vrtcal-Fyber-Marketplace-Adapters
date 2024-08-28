@@ -1,7 +1,7 @@
 import IASDKCore
 import VrtcalSDK
 
-
+// TODO: Review these and remove defunct ones like the click event.
 class IAMRAIDContentDelegatePassthrough: NSObject, IAMRAIDContentDelegate {
     weak var customEventShowDelegate: VRTCustomEventShowDelegate?
     
